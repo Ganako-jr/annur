@@ -59,10 +59,6 @@ with app.app_context():
     import models
     db.create_all()
     
-    @app.route('/')
-def index():
-    return render_template('base.html')
-
     # Initialize staff IDs if not exists
     from models import StaffID
     if not StaffID.query.first():
