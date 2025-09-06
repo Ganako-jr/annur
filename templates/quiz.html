@@ -1,0 +1,397 @@
+{% extends "base.html" %}
+
+{% block title %}Quizzes - E-Classroom Platform{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="fas fa-question-circle me-2 text-warning"></i>
+                {% if current_user.role == 'teacher' %}Quiz Management{% else %}Available Quizzes{% endif %}
+            </h2>
+            <p class="text-muted">
+                {% if current_user.role == 'teacher' %}
+                    Create and manage quizzes for your students. Monitor quiz performance and results.
+                {% else %}
+                    Take quizzes assigned to your class ({{ current_user.class_name }}).
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            {% if current_user.role == 'teacher' %}
+            <button class="btn btn-warning" id="createQuizBtn">
+                <i class="fas fa-plus me-1"></i>Create Quiz
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Quiz Stats -->
+    {% if current_user.role == 'teacher' %}
+    <div class="row mb-4">
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="fs-2 text-warning mb-2">
+                        <i class="fas fa-clipboard-question"></i>
+                    </div>
+                    <h5>{{ quizzes|length }}</h5>
+                    <small class="text-muted">Total Quizzes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="fs-2 text-success mb-2">
+                        <i class="fas fa-play-circle"></i>
+                    </div>
+                    <h5>{{ quizzes|selectattr('is_active')|list|length }}</h5>
+                    <small class="text-muted">Active Quizzes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="fs-2 text-info mb-2">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h5>{{ quizzes|sum(attribute='attempts')|length if quizzes else 0 }}</h5>
+                    <small class="text-muted">Total Attempts</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="fs-2 text-primary mb-2">
+                        <i class="fas fa-chart-line"></i>
+                    </div>
+                    <h5>85%</h5>
+                    <small class="text-muted">Avg Score</small>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Subject</label>
+                            <select class="form-select form-select-sm" id="subjectFilter" onchange="filterQuizzes()">
+                                <option value="">All Subjects</option>
+                                {% if current_user.class_name %}
+                                    {% for subject in current_user.get_subjects() %}
+                                    <option value="{{ subject }}">{{ subject }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="Mathematics">Mathematics</option>
+                                    <option value="English">English</option>
+                                    <option value="Physics">Physics</option>
+                                    <option value="Chemistry">Chemistry</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        {% if current_user.role == 'teacher' %}
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Class</label>
+                            <select class="form-select form-select-sm" id="classFilter" onchange="filterQuizzes()">
+                                <option value="">All Classes</option>
+                                <option value="SS1A">SS1A</option>
+                                <option value="SS1B">SS1B</option>
+                                <option value="SS2A">SS2A</option>
+                                <option value="SS2B">SS2B</option>
+                                <option value="SS3A">SS3A</option>
+                                <option value="SS3B">SS3B</option>
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Status</label>
+                            <select class="form-select form-select-sm" id="statusFilter" onchange="filterQuizzes()">
+                                <option value="">All Status</option>
+                                <option value="active">Active</option>
+                                <option value="inactive">Inactive</option>
+                                {% if current_user.role == 'student' %}
+                                <option value="completed">Completed</option>
+                                <option value="available">Available</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Search</label>
+                            <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Search quizzes..." onkeyup="filterQuizzes()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quizzes List -->
+    <div class="row" id="quizzesList">
+        {% for quiz in quizzes %}
+        <div class="col-lg-6 mb-4 quiz-item" 
+             data-subject="{{ quiz.subject }}" 
+             data-class="{{ quiz.class_name }}"
+             data-status="{{ 'active' if quiz.is_active else 'inactive' }}"
+             data-searchable>
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">{{ quiz.title }}</h5>
+                        <small class="text-muted">
+                            {{ quiz.subject }} • {{ quiz.class_name }}
+                            {% if quiz.time_limit %}• {{ quiz.time_limit }} minutes{% endif %}
+                        </small>
+                    </div>
+                    <div>
+                        <span class="badge bg-{{ 'success' if quiz.is_active else 'secondary' }}">
+                            {{ 'Active' if quiz.is_active else 'Inactive' }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if quiz.description %}
+                    <p class="card-text">{{ quiz.description }}</p>
+                    {% endif %}
+                    
+                    <div class="row text-center mb-3">
+                        <div class="col-4">
+                            <div class="small text-muted">Questions</div>
+                            <div class="fw-bold">{{ quiz.questions|length }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted">Time Limit</div>
+                            <div class="fw-bold">{{ quiz.time_limit or 'Unlimited' }}</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="small text-muted">Attempts</div>
+                            <div class="fw-bold">{{ quiz.attempts|length }}</div>
+                        </div>
+                    </div>
+                    
+                    {% if current_user.role == 'teacher' %}
+                    <!-- Teacher Actions -->
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-outline-info btn-sm" onclick="viewQuizDetails({{ quiz.id }})">
+                            <i class="fas fa-eye me-1"></i>View Details
+                        </button>
+                        <button class="btn btn-outline-primary btn-sm" onclick="editQuiz({{ quiz.id }})">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </button>
+                        <button class="btn btn-outline-{{ 'danger' if quiz.is_active else 'success' }} btn-sm" onclick="toggleQuizStatus({{ quiz.id }})">
+                            <i class="fas fa-{{ 'stop' if quiz.is_active else 'play' }} me-1"></i>
+                            {{ 'Deactivate' if quiz.is_active else 'Activate' }}
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm" onclick="viewResults({{ quiz.id }})">
+                            <i class="fas fa-chart-bar me-1"></i>Results
+                        </button>
+                    </div>
+                    
+                    {% else %}
+                    <!-- Student Actions -->
+                    {% set attempt = quiz.attempts|selectattr('student_id', 'equalto', current_user.id)|first %}
+                    {% if attempt %}
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-1"></i>Quiz Completed</h6>
+                            <p class="mb-1">Score: {{ attempt.score }}/{{ attempt.total_points }} ({{ (attempt.score/attempt.total_points*100)|round(1) }}%)</p>
+                            <p class="mb-0">Completed: {{ attempt.completed_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                        </div>
+                    {% elif quiz.is_active %}
+                        <button class="btn btn-warning start-quiz-btn" data-quiz-id="{{ quiz.id }}">
+                            <i class="fas fa-play me-1"></i>Take Quiz
+                        </button>
+                    {% else %}
+                        <div class="alert alert-info">
+                            <i class="fas fa-info-circle me-1"></i>
+                            This quiz is not currently available.
+                        </div>
+                    {% endif %}
+                    {% endif %}
+                </div>
+                <div class="card-footer text-muted small">
+                    Created: {{ quiz.created_at.strftime('%Y-%m-%d') }} by {{ quiz.teacher.username }}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if not quizzes %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-question-circle fs-1 text-muted mb-3"></i>
+                    <h5 class="text-muted">No Quizzes Found</h5>
+                    <p class="text-muted">
+                        {% if current_user.role == 'teacher' %}
+                            Create your first quiz to get started.
+                        {% else %}
+                            Check back later for new quizzes from your teachers.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if current_user.role == 'teacher' %}
+<!-- Create Quiz Modal -->
+<div class="modal fade" id="createQuizModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Create New Quiz
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="createQuizForm">
+                <div class="modal-body">
+                    <!-- Quiz Details -->
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="quizTitle" class="form-label">Quiz Title *</label>
+                            <input type="text" class="form-control" id="quizTitle" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="timeLimit" class="form-label">Time Limit (minutes)</label>
+                            <input type="number" class="form-control" id="timeLimit" min="1" placeholder="No limit">
+                        </div>
+                    </div>
+                    <div class="row mb-4">
+                        <div class="col-md-6 mb-3">
+                            <label for="quizSubject" class="form-label">Subject *</label>
+                            <select class="form-select" id="quizSubject" required>
+                                <option value="">Select Subject</option>
+                                <option value="Mathematics">Mathematics</option>
+                                <option value="English">English</option>
+                                <option value="Data Processing">Data Processing</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Civic Education">Civic Education</option>
+                                <option value="Geography">Geography</option>
+                                <option value="Physics">Physics</option>
+                                <option value="Chemistry">Chemistry</option>
+                                <option value="Biology">Biology</option>
+                                <option value="Agriculture">Agriculture</option>
+                                <option value="Government">Government</option>
+                                <option value="Literature">Literature</option>
+                                <option value="Economics">Economics</option>
+                                <option value="Islamic Studies">Islamic Studies</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="quizClass" class="form-label">Class *</label>
+                            <select class="form-select" id="quizClass" required>
+                                <option value="">Select Class</option>
+                                <option value="SS1A">SS1A</option>
+                                <option value="SS1B">SS1B</option>
+                                <option value="SS2A">SS2A</option>
+                                <option value="SS2B">SS2B</option>
+                                <option value="SS3A">SS3A</option>
+                                <option value="SS3B">SS3B</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-4">
+                        <label for="quizDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="quizDescription" rows="3" placeholder="Brief description of the quiz..."></textarea>
+                    </div>
+                    
+                    <!-- Questions Section -->
+                    <hr>
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6>Quiz Questions</h6>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="addQuestionBtn">
+                            <i class="fas fa-plus me-1"></i>Add Question
+                        </button>
+                    </div>
+                    <div id="questionsContainer">
+                        <!-- Questions will be added dynamically -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-warning" id="submitQuizBtn">
+                        <i class="fas fa-save me-1"></i>Create Quiz
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function filterQuizzes() {
+    const subjectFilter = document.getElementById('subjectFilter').value.toLowerCase();
+    const classFilter = document.getElementById('classFilter')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+    const searchInput = document.getElementById('searchInput').value.toLowerCase();
+    
+    const quizzes = document.querySelectorAll('.quiz-item');
+    
+    quizzes.forEach(quiz => {
+        const subject = quiz.dataset.subject.toLowerCase();
+        const className = quiz.dataset.class.toLowerCase();
+        const status = quiz.dataset.status.toLowerCase();
+        const text = quiz.textContent.toLowerCase();
+        
+        const matchesSubject = !subjectFilter || subject.includes(subjectFilter);
+        const matchesClass = !classFilter || className.includes(classFilter);
+        const matchesStatus = !statusFilter || status === statusFilter;
+        const matchesSearch = !searchInput || text.includes(searchInput);
+        
+        if (matchesSubject && matchesClass && matchesStatus && matchesSearch) {
+            quiz.style.display = 'block';
+        } else {
+            quiz.style.display = 'none';
+        }
+    });
+}
+
+{% if current_user.role == 'teacher' %}
+function toggleQuizStatus(quizId) {
+    fetch(`/api/quiz/${quizId}/toggle`, {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Quiz status updated', 'success');
+            location.reload();
+        } else {
+            showNotification('Failed to update quiz status', 'danger');
+        }
+    });
+}
+
+function viewQuizDetails(quizId) {
+    window.location.href = `/quiz/${quizId}/details`;
+}
+
+function editQuiz(quizId) {
+    window.location.href = `/quiz/${quizId}/edit`;
+}
+
+function viewResults(quizId) {
+    window.location.href = `/quiz/${quizId}/results`;
+}
+{% endif %}
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+
+{% block title %}E-Classroom Platform - Digital Learning Made Easy{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<section class="hero-section">
+    <div class="container">
+        <div class="row justify-content-center text-center">
+            <div class="col-lg-8">
+                <h1>Digital Learning Made Easy</h1>
+                <p class="lead">
+                    A comprehensive e-classroom platform designed for modern education.
+                    Connect, learn, and grow with interactive lessons, assignments, and real-time collaboration.
+                </p>
+                <div class="mt-4">
+                    {% if not current_user.is_authenticated %}
+                        <a href="{{ url_for('register') }}" class="btn btn-light btn-lg me-3">
+                            <i class="fas fa-user-plus me-2"></i>Get Started
+                        </a>
+                        <a href="{{ url_for('login') }}" class="btn btn-outline-light btn-lg">
+                            <i class="fas fa-sign-in-alt me-2"></i>Sign In
+                        </a>
+                    {% else %}
+                        <a href="{{ url_for('dashboard') }}" class="btn btn-light btn-lg">
+                            <i class="fas fa-tachometer-alt me-2"></i>Go to Dashboard
+                        </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="display-5 fw-bold">Everything You Need for Modern Learning</h2>
+                <p class="lead text-muted">
+                    Our platform brings together all the tools educators and students need for effective online learning.
+                </p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-video"></i>
+                        </div>
+                        <h5 class="card-title">Video Conferencing</h5>
+                        <p class="card-text">
+                            High-quality video calls with screen sharing capabilities for interactive virtual classes.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-comments"></i>
+                        </div>
+                        <h5 class="card-title">Real-time Messaging</h5>
+                        <p class="card-text">
+                            Instant messaging between teachers and students with file sharing capabilities.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-clipboard-list"></i>
+                        </div>
+                        <h5 class="card-title">Assignment Management</h5>
+                        <p class="card-text">
+                            Create, submit, and grade assignments with automatic notifications and progress tracking.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-question-circle"></i>
+                        </div>
+                        <h5 class="card-title">Online Quizzes</h5>
+                        <p class="card-text">
+                            Interactive quiz system with timed tests and automatic grading for efficient assessment.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-bell"></i>
+                        </div>
+                        <h5 class="card-title">Smart Notifications</h5>
+                        <p class="card-text">
+                            Automatic notifications for new assignments, quizzes, and class sessions to keep everyone updated.
+                        </p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-4 col-md-6">
+                <div class="card feature-card h-100">
+                    <div class="card-body text-center">
+                        <div class="feature-icon">
+                            <i class="fas fa-chart-bar"></i>
+                        </div>
+                        <h5 class="card-title">Analytics Dashboard</h5>
+                        <p class="card-text">
+                            Comprehensive progress tracking and analytics for teachers to monitor student performance.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Statistics Section -->
+<section class="stats-section">
+    <div class="container">
+        <div class="row text-center">
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-item">
+                    <span class="stat-number">6</span>
+                    <div class="stat-label">Classes Supported</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-item">
+                    <span class="stat-number">20+</span>
+                    <div class="stat-label">Subjects Available</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-item">
+                    <span class="stat-number">100%</span>
+                    <div class="stat-label">Mobile Responsive</div>
+                </div>
+            </div>
+            <div class="col-lg-3 col-md-6">
+                <div class="stat-item">
+                    <span class="stat-number">24/7</span>
+                    <div class="stat-label">Online Access</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Classes Section -->
+<section class="py-5">
+    <div class="container">
+        <div class="row text-center mb-5">
+            <div class="col-lg-8 mx-auto">
+                <h2 class="display-5 fw-bold">Supported Classes</h2>
+                <p class="lead text-muted">
+                    Our platform supports multiple class levels with specialized subjects for each stream.
+                </p>
+            </div>
+        </div>
+        
+        <div class="row g-4">
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-success">
+                        <h5 class="card-title mb-0 text-white">
+                            <i class="fas fa-flask me-2"></i>Science Stream (A Classes)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text mb-3">Available Classes: SS1A, SS2A, SS3A</p>
+                        <h6>Subjects:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>Mathematics</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>English</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Data Processing</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Marketing</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Civic Education</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-success me-2"></i>Geography</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Physics</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Chemistry</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Biology</li>
+                                    <li><i class="fas fa-check text-success me-2"></i>Agriculture</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header bg-info">
+                        <h5 class="card-title mb-0 text-white">
+                            <i class="fas fa-book me-2"></i>Arts Stream (B Classes)
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <p class="card-text mb-3">Available Classes: SS1B, SS2B, SS3B</p>
+                        <h6>Subjects:</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-info me-2"></i>Mathematics</li>
+                                    <li><i class="fas fa-check text-info me-2"></i>English</li>
+                                    <li><i class="fas fa-check text-info me-2"></i>Data Processing</li>
+                                    <li><i class="fas fa-check text-info me-2"></i>Marketing</li>
+                                    <li><i class="fas fa-check text-info me-2"></i>Civic Education</li>
+                                </ul>
+                            </div>
+                            <div class="col-md-6">
+                                <ul class="list-unstyled">
+                                    <li><i class="fas fa-check text-info me-2"></i>Geography</li>
+                                    <li><i class="fas fa-check text-info me-2"></i>Government</li>
+                                    <li><i class="fas fa-check text-info me-2"></i>Literature</li>
+                                    <li><i class="fas fa-check text-info me-2"></i>Economics</li>
+                                    <li><i class="fas fa-check text-info me-2"></i>Islamic Studies</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- PWA Features -->
+{% if not current_user.is_authenticated %}
+<section class="py-5 bg-light">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6">
+                <h3>Progressive Web App</h3>
+                <p class="lead">
+                    Install our app on your device for the best learning experience.
+                    Works offline and provides native app-like performance.
+                </p>
+                <ul class="list-unstyled">
+                    <li class="mb-2"><i class="fas fa-wifi text-success me-2"></i>Works offline</li>
+                    <li class="mb-2"><i class="fas fa-mobile-alt text-success me-2"></i>Mobile optimized</li>
+                    <li class="mb-2"><i class="fas fa-bell text-success me-2"></i>Push notifications</li>
+                    <li class="mb-2"><i class="fas fa-sync text-success me-2"></i>Auto-sync when online</li>
+                </ul>
+            </div>
+            <div class="col-lg-6 text-center">
+                <div class="display-1 text-primary">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

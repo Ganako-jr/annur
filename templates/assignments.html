@@ -1,0 +1,493 @@
+{% extends "base.html" %}
+
+{% block title %}Assignments - E-Classroom Platform{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="fas fa-clipboard-list me-2 text-info"></i>
+                {% if current_user.role == 'teacher' %}My Assignments{% else %}Class Assignments{% endif %}
+            </h2>
+            <p class="text-muted">
+                {% if current_user.role == 'teacher' %}
+                    Manage assignments, track submissions, and provide feedback to students.
+                {% else %}
+                    View and submit your assignments for {{ current_user.class_name }}.
+                {% endif %}
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            {% if current_user.role == 'teacher' %}
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createAssignmentModal">
+                <i class="fas fa-plus me-1"></i>Create Assignment
+            </button>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row align-items-end">
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Filter by Subject</label>
+                            <select class="form-select form-select-sm" id="subjectFilter" onchange="filterAssignments()">
+                                <option value="">All Subjects</option>
+                                {% if current_user.class_name %}
+                                    {% for subject in current_user.get_subjects() %}
+                                    <option value="{{ subject }}">{{ subject }}</option>
+                                    {% endfor %}
+                                {% else %}
+                                    <option value="Mathematics">Mathematics</option>
+                                    <option value="English">English</option>
+                                    <option value="Physics">Physics</option>
+                                    <option value="Chemistry">Chemistry</option>
+                                    <option value="Biology">Biology</option>
+                                {% endif %}
+                            </select>
+                        </div>
+                        {% if current_user.role == 'teacher' %}
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Filter by Class</label>
+                            <select class="form-select form-select-sm" id="classFilter" onchange="filterAssignments()">
+                                <option value="">All Classes</option>
+                                <option value="SS1A">SS1A</option>
+                                <option value="SS1B">SS1B</option>
+                                <option value="SS2A">SS2A</option>
+                                <option value="SS2B">SS2B</option>
+                                <option value="SS3A">SS3A</option>
+                                <option value="SS3B">SS3B</option>
+                            </select>
+                        </div>
+                        {% endif %}
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Status</label>
+                            <select class="form-select form-select-sm" id="statusFilter" onchange="filterAssignments()">
+                                <option value="">All Status</option>
+                                <option value="pending">Pending</option>
+                                <option value="submitted">Submitted</option>
+                                <option value="graded">Graded</option>
+                                <option value="overdue">Overdue</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label class="form-label small">Search</label>
+                            <input type="text" class="form-control form-control-sm" id="searchInput" placeholder="Search assignments..." onkeyup="filterAssignments()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Assignments List -->
+    <div class="row" id="assignmentsList">
+        {% for assignment in assignments %}
+        <div class="col-12 mb-4 assignment-item" 
+             data-subject="{{ assignment.subject }}" 
+             data-class="{{ assignment.class_name }}"
+             data-searchable>
+            <div class="card assignment-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">{{ assignment.title }}</h5>
+                        <small class="text-muted">
+                            {{ assignment.subject }} • {{ assignment.class_name }} • 
+                            Created: {{ assignment.created_at.strftime('%Y-%m-%d') }}
+                            {% if assignment.due_date %}
+                                • Due: {{ assignment.due_date.strftime('%Y-%m-%d %H:%M') }}
+                            {% endif %}
+                        </small>
+                    </div>
+                    <div class="text-end">
+                        {% if current_user.role == 'teacher' %}
+                            <span class="badge bg-info">{{ assignment.submissions|length }} Submissions</span>
+                        {% else %}
+                            {% set submission = assignment.submissions|selectattr('student_id', 'equalto', current_user.id)|first %}
+                            {% if submission %}
+                                {% if submission.grade %}
+                                    <span class="badge bg-success">Graded: {{ submission.grade }}/100</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Submitted</span>
+                                {% endif %}
+                            {% else %}
+                                {% if assignment.due_date and assignment.due_date < moment().datetime %}
+                                    <span class="badge bg-danger">Overdue</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Pending</span>
+                                {% endif %}
+                            {% endif %}
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="card-body">
+                    {% if assignment.description %}
+                    <p class="card-text">{{ assignment.description }}</p>
+                    {% endif %}
+                    
+                    {% if current_user.role == 'teacher' %}
+                    <!-- Teacher View -->
+                    <div class="d-flex gap-2 flex-wrap">
+                        <button class="btn btn-primary btn-sm" onclick="viewSubmissions({{ assignment.id }})">
+                            <i class="fas fa-eye me-1"></i>View Submissions
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="editAssignment({{ assignment.id }})">
+                            <i class="fas fa-edit me-1"></i>Edit
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm" onclick="deleteAssignment({{ assignment.id }})">
+                            <i class="fas fa-trash me-1"></i>Delete
+                        </button>
+                    </div>
+                    
+                    <!-- Submissions for this assignment -->
+                    {% if assignment.submissions %}
+                    <div class="mt-3">
+                        <h6>Recent Submissions:</h6>
+                        <div class="table-responsive">
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Student</th>
+                                        <th>Submitted</th>
+                                        <th>Grade</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for submission in assignment.submissions[:5] %}
+                                    <tr>
+                                        <td>{{ submission.student.username }}</td>
+                                        <td>{{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td>
+                                            {% if submission.grade %}
+                                                <span class="badge bg-success">{{ submission.grade }}/100</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">Pending</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-outline-primary btn-xs" onclick="gradeSubmission({{ submission.id }})">
+                                                {% if submission.grade %}Review{% else %}Grade{% endif %}
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    {% else %}
+                    <!-- Student View -->
+                    {% set submission = assignment.submissions|selectattr('student_id', 'equalto', current_user.id)|first %}
+                    {% if submission %}
+                        <div class="alert alert-success">
+                            <h6><i class="fas fa-check-circle me-1"></i>Assignment Submitted</h6>
+                            <p class="mb-1">Submitted on: {{ submission.submitted_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            {% if submission.grade %}
+                                <p class="mb-1"><strong>Grade: {{ submission.grade }}/100</strong></p>
+                                {% if submission.feedback %}
+                                    <p class="mb-0"><strong>Feedback:</strong> {{ submission.feedback }}</p>
+                                {% endif %}
+                            {% else %}
+                                <p class="mb-0">Waiting for teacher to grade your submission.</p>
+                            {% endif %}
+                        </div>
+                        {% if not submission.grade %}
+                        <button class="btn btn-warning btn-sm" onclick="resubmitAssignment({{ assignment.id }})">
+                            <i class="fas fa-redo me-1"></i>Resubmit
+                        </button>
+                        {% endif %}
+                    {% else %}
+                        <!-- Submit Assignment Form -->
+                        <form method="POST" action="{{ url_for('submit_assignment', assignment_id=assignment.id) }}" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label class="form-label">Assignment Text</label>
+                                <textarea class="form-control" name="content" rows="4" placeholder="Type your assignment content here..."></textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Upload File (Optional)</label>
+                                <input type="file" class="form-control" name="file" accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png">
+                                <div class="form-text">Supported formats: PDF, DOC, DOCX, TXT, JPG, PNG (Max 16MB)</div>
+                            </div>
+                            <button type="submit" class="btn btn-success">
+                                <i class="fas fa-upload me-1"></i>Submit Assignment
+                            </button>
+                        </form>
+                    {% endif %}
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+        
+        {% if not assignments %}
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-clipboard-list fs-1 text-muted mb-3"></i>
+                    <h5 class="text-muted">No Assignments Found</h5>
+                    <p class="text-muted">
+                        {% if current_user.role == 'teacher' %}
+                            Start by creating your first assignment.
+                        {% else %}
+                            Check back later for new assignments from your teachers.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if current_user.role == 'teacher' %}
+<!-- Create Assignment Modal -->
+<div class="modal fade" id="createAssignmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Create New Assignment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('create_assignment') }}" id="createAssignmentForm">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="title" class="form-label">Assignment Title *</label>
+                            <input type="text" class="form-control" id="title" name="title" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="due_date" class="form-label">Due Date *</label>
+                            <input type="datetime-local" class="form-control" id="due_date" name="due_date" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="subject" class="form-label">Subject *</label>
+                            <select class="form-select" id="subject" name="subject" required>
+                                <option value="">Select Subject</option>
+                                <option value="Mathematics">Mathematics</option>
+                                <option value="English">English</option>
+                                <option value="Data Processing">Data Processing</option>
+                                <option value="Marketing">Marketing</option>
+                                <option value="Civic Education">Civic Education</option>
+                                <option value="Geography">Geography</option>
+                                <option value="Physics">Physics</option>
+                                <option value="Chemistry">Chemistry</option>
+                                <option value="Biology">Biology</option>
+                                <option value="Agriculture">Agriculture</option>
+                                <option value="Government">Government</option>
+                                <option value="Literature">Literature</option>
+                                <option value="Economics">Economics</option>
+                                <option value="Islamic Studies">Islamic Studies</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="class_name" class="form-label">Class *</label>
+                            <select class="form-select" id="class_name" name="class_name" required>
+                                <option value="">Select Class</option>
+                                <option value="SS1A">SS1A</option>
+                                <option value="SS1B">SS1B</option>
+                                <option value="SS2A">SS2A</option>
+                                <option value="SS2B">SS2B</option>
+                                <option value="SS3A">SS3A</option>
+                                <option value="SS3B">SS3B</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="description" class="form-label">Assignment Description</label>
+                        <textarea class="form-control" id="description" name="description" rows="4" placeholder="Provide detailed instructions for the assignment..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-plus me-1"></i>Create Assignment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Grade Submission Modal -->
+<div class="modal fade" id="gradeSubmissionModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-star me-2"></i>Grade Submission
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="gradeSubmissionForm">
+                <div class="modal-body">
+                    <div id="submissionContent"></div>
+                    <hr>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="grade" class="form-label">Grade (0-100) *</label>
+                            <input type="number" class="form-control" id="grade" name="grade" min="0" max="100" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Grade Level</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="gradeLevel" id="gradeA" value="90" onclick="setGrade(90)">
+                                <label class="btn btn-outline-success" for="gradeA">A (90-100)</label>
+                                
+                                <input type="radio" class="btn-check" name="gradeLevel" id="gradeB" value="80" onclick="setGrade(80)">
+                                <label class="btn btn-outline-info" for="gradeB">B (80-89)</label>
+                                
+                                <input type="radio" class="btn-check" name="gradeLevel" id="gradeC" value="70" onclick="setGrade(70)">
+                                <label class="btn btn-outline-warning" for="gradeC">C (70-79)</label>
+                                
+                                <input type="radio" class="btn-check" name="gradeLevel" id="gradeF" value="50" onclick="setGrade(50)">
+                                <label class="btn btn-outline-danger" for="gradeF">F (0-69)</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="feedback" class="form-label">Feedback</label>
+                        <textarea class="form-control" id="feedback" name="feedback" rows="4" placeholder="Provide feedback to the student..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-star me-1"></i>Submit Grade
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+function filterAssignments() {
+    const subjectFilter = document.getElementById('subjectFilter').value.toLowerCase();
+    const classFilter = document.getElementById('classFilter')?.value.toLowerCase() || '';
+    const statusFilter = document.getElementById('statusFilter').value.toLowerCase();
+    const searchInput = document.getElementById('searchInput').value.toLowerCase();
+    
+    const assignments = document.querySelectorAll('.assignment-item');
+    
+    assignments.forEach(assignment => {
+        const subject = assignment.dataset.subject.toLowerCase();
+        const className = assignment.dataset.class.toLowerCase();
+        const text = assignment.textContent.toLowerCase();
+        
+        const matchesSubject = !subjectFilter || subject.includes(subjectFilter);
+        const matchesClass = !classFilter || className.includes(classFilter);
+        const matchesSearch = !searchInput || text.includes(searchInput);
+        
+        // Status filtering would need additional data attributes
+        const matchesStatus = !statusFilter; // Simplified for now
+        
+        if (matchesSubject && matchesClass && matchesSearch && matchesStatus) {
+            assignment.style.display = 'block';
+        } else {
+            assignment.style.display = 'none';
+        }
+    });
+}
+
+{% if current_user.role == 'teacher' %}
+function gradeSubmission(submissionId) {
+    // Fetch submission details and show grading modal
+    fetch(`/api/submission/${submissionId}`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('submissionContent').innerHTML = `
+                <h6>Student: ${data.student_name}</h6>
+                <p><strong>Submitted:</strong> ${data.submitted_at}</p>
+                <div class="border p-3 rounded">
+                    <h6>Submission Content:</h6>
+                    <p>${data.content || 'No text content'}</p>
+                    ${data.file_path ? `<p><strong>File:</strong> <a href="${data.file_path}" target="_blank">Download</a></p>` : ''}
+                </div>
+            `;
+            
+            // Set current grade if exists
+            if (data.grade) {
+                document.getElementById('grade').value = data.grade;
+                document.getElementById('feedback').value = data.feedback || '';
+            }
+            
+            // Set form action
+            document.getElementById('gradeSubmissionForm').action = `/grade_submission/${submissionId}`;
+            
+            const modal = new bootstrap.Modal(document.getElementById('gradeSubmissionModal'));
+            modal.show();
+        });
+}
+
+function setGrade(value) {
+    document.getElementById('grade').value = value;
+}
+
+// Handle grade submission
+document.getElementById('gradeSubmissionForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    
+    fetch(this.action, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Grade submitted successfully', 'success');
+            location.reload();
+        } else {
+            showNotification('Failed to submit grade', 'danger');
+        }
+    });
+});
+
+function viewSubmissions(assignmentId) {
+    window.location.href = `/assignment/${assignmentId}/submissions`;
+}
+
+function editAssignment(assignmentId) {
+    window.location.href = `/assignment/${assignmentId}/edit`;
+}
+
+function deleteAssignment(assignmentId) {
+    if (confirm('Are you sure you want to delete this assignment? This action cannot be undone.')) {
+        fetch(`/assignment/${assignmentId}`, {
+            method: 'DELETE'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showNotification('Assignment deleted successfully', 'success');
+                location.reload();
+            } else {
+                showNotification('Failed to delete assignment', 'danger');
+            }
+        });
+    }
+}
+{% endif %}
+
+function resubmitAssignment(assignmentId) {
+    if (confirm('Are you sure you want to resubmit this assignment? Your previous submission will be replaced.')) {
+        // Implementation for resubmission
+        location.reload();
+    }
+}
+</script>
+{% endblock %}

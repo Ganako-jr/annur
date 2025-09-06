@@ -1,0 +1,19 @@
+{
+  "name": "E-Classroom Platform",
+  "short_name": "E-Classroom",
+  "description": "Comprehensive e-classroom platform for teachers and students",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#007bff",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "https://cdn.jsdelivr.net/npm/@tabler/icons@latest/icons/school.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["education", "productivity"],
+  "lang": "en-US"
+}

@@ -1,0 +1,450 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics Dashboard - E-Classroom Platform{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2>
+                <i class="fas fa-chart-bar me-2 text-primary"></i>
+                Analytics Dashboard
+            </h2>
+            <p class="text-muted">
+                Comprehensive overview of your teaching activities, student performance, and engagement metrics.
+            </p>
+        </div>
+        <div class="col-md-4 text-md-end">
+            <div class="btn-group">
+                <button class="btn btn-outline-primary btn-sm active" onclick="setTimeRange('week')">Week</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange('month')">Month</button>
+                <button class="btn btn-outline-primary btn-sm" onclick="setTimeRange('semester')">Semester</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Overview Stats -->
+    <div class="row mb-4">
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-primary text-white">
+                <div class="card-body text-center">
+                    <div class="fs-1 mb-2">
+                        <i class="fas fa-chalkboard"></i>
+                    </div>
+                    <h3>{{ total_sessions }}</h3>
+                    <p class="mb-0">Total Sessions</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-info text-white">
+                <div class="card-body text-center">
+                    <div class="fs-1 mb-2">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <h3>{{ total_assignments }}</h3>
+                    <p class="mb-0">Assignments Created</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body text-center">
+                    <div class="fs-1 mb-2">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <h3>{{ total_quizzes }}</h3>
+                    <p class="mb-0">Quizzes Created</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card bg-success text-white">
+                <div class="card-body text-center">
+                    <div class="fs-1 mb-2">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h3>{{ active_students or 0 }}</h3>
+                    <p class="mb-0">Active Students</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Session Activity Chart -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-line me-2"></i>Session Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="sessionChart" height="100"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Class Performance -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-graduation-cap me-2"></i>Class Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="performanceChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Assignment Submissions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tasks me-2"></i>Assignment Submissions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>Assignment</th>
+                                    <th>Class</th>
+                                    <th>Submissions</th>
+                                    <th>Avg Grade</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if assignment_stats %}
+                                    {% for assignment in assignment_stats[:5] %}
+                                    <tr>
+                                        <td>{{ assignment.title }}</td>
+                                        <td>{{ assignment.class_name }}</td>
+                                        <td>{{ assignment.submissions }}/{{ assignment.total_students }}</td>
+                                        <td>{{ assignment.avg_grade }}%</td>
+                                        <td>
+                                            {% if assignment.graded == assignment.submissions %}
+                                                <span class="badge bg-success">Complete</span>
+                                            {% elif assignment.submissions > 0 %}
+                                                <span class="badge bg-warning">Pending</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">No Submissions</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted">No assignments created yet</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Quiz Results -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-pie me-2"></i>Quiz Performance
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="quizChart" height="150"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Student Engagement -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-user-clock me-2"></i>Student Engagement
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Assignment Submission</span>
+                            <span class="fw-bold">{{ submission_rate }}%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-info" style="width: {{ submission_rate }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Grading Progress</span>
+                            <span class="fw-bold">{{ grading_completion }}%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-success" style="width: {{ grading_completion }}%"></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between">
+                            <span>Quiz Participation</span>
+                            <span class="fw-bold">{{ quiz_participation }}%</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-warning" style="width: {{ quiz_participation }}%"></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="d-flex justify-content-between">
+                            <span>Active Sessions</span>
+                            <span class="fw-bold">{{ total_sessions }}</span>
+                        </div>
+                        <div class="progress">
+                            <div class="progress-bar bg-primary" style="width: {{ (total_sessions * 10) | min(100) }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Performing Students -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-trophy me-2"></i>Top Performers
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if assignment_stats %}
+                        {% set top_assignments = assignment_stats | selectattr('avg_grade', '>', 0) | sort(attribute='avg_grade', reverse=True) %}
+                        {% if top_assignments %}
+                            {% for assignment in top_assignments[:3] %}
+                            <div class="d-flex align-items-center mb-3">
+                                <div class="flex-shrink-0 me-3">
+                                    <div class="bg-{% if loop.index == 1 %}warning{% elif loop.index == 2 %}secondary{% else %}info{% endif %} text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-trophy"></i>
+                                    </div>
+                                </div>
+                                <div class="flex-grow-1">
+                                    <h6 class="mb-0">{{ assignment.title }}</h6>
+                                    <small class="text-muted">{{ assignment.class_name }} • {{ assignment.avg_grade }}% Average</small>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-center py-4 text-muted">
+                                <i class="fas fa-trophy fs-1 mb-3 d-block"></i>
+                                No graded assignments yet
+                            </div>
+                        {% endif %}
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-trophy fs-1 mb-3 d-block"></i>
+                            Create assignments to see top performers
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Subject Distribution -->
+        <div class="col-lg-4 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-book me-2"></i>Subject Distribution
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="subjectChart" height="200"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Time</th>
+                                    <th>Action</th>
+                                    <th>Description</th>
+                                    <th>Class/Subject</th>
+                                    <th>Students Affected</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if recent_activity %}
+                                    {% for activity in recent_activity %}
+                                    <tr>
+                                        <td>{{ moment(activity.time).fromNow() if moment else activity.time.strftime('%Y-%m-%d %H:%M') }}</td>
+                                        <td><span class="badge bg-{% if activity.action == 'Session' %}success{% elif activity.action == 'Assignment' %}info{% elif activity.action == 'Quiz' %}warning{% else %}primary{% endif %}">{{ activity.action }}</span></td>
+                                        <td>{{ activity.description }}</td>
+                                        <td>{{ activity.class_subject }}</td>
+                                        <td>{{ activity.students_affected }} students</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-3">No recent activity to display</td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+// Session Activity Chart
+const sessionCtx = document.getElementById('sessionChart').getContext('2d');
+new Chart(sessionCtx, {
+    type: 'line',
+    data: {
+        labels: {{ session_labels | tojson }},
+        datasets: [{
+            label: 'Sessions',
+            data: {{ session_activity | tojson }},
+            borderColor: 'rgb(75, 192, 192)',
+            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+            tension: 0.4
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: {
+                display: false
+            }
+        }
+    }
+});
+
+// Performance Chart
+const performanceCtx = document.getElementById('performanceChart').getContext('2d');
+const gradeData = [
+    {{ grade_distribution.excellent }},
+    {{ grade_distribution.good }},
+    {{ grade_distribution.fair }},
+    {{ grade_distribution.poor }}
+];
+new Chart(performanceCtx, {
+    type: 'doughnut',
+    data: {
+        labels: ['Excellent (90-100)', 'Good (80-89)', 'Fair (70-79)', 'Poor (0-69)'],
+        datasets: [{
+            data: gradeData,
+            backgroundColor: [
+                'rgba(40, 167, 69, 0.8)',
+                'rgba(23, 162, 184, 0.8)',
+                'rgba(255, 193, 7, 0.8)',
+                'rgba(220, 53, 69, 0.8)'
+            ]
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+// Quiz Performance Chart
+const quizCtx = document.getElementById('quizChart').getContext('2d');
+const quizLabels = {{ quiz_stats | map(attribute='title') | list | tojson }};
+const quizScores = {{ quiz_stats | map(attribute='avg_score') | list | tojson }};
+new Chart(quizCtx, {
+    type: 'bar',
+    data: {
+        labels: quizLabels.length > 0 ? quizLabels : ['No Quizzes Yet'],
+        datasets: [{
+            label: 'Average Score (%)',
+            data: quizScores.length > 0 ? quizScores : [0],
+            backgroundColor: 'rgba(255, 193, 7, 0.8)',
+            borderColor: 'rgba(255, 193, 7, 1)',
+            borderWidth: 1
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+            y: {
+                beginAtZero: true,
+                max: 100
+            }
+        }
+    }
+});
+
+// Subject Distribution Chart
+const subjectCtx = document.getElementById('subjectChart').getContext('2d');
+const subjectLabels = Object.keys({{ subject_counts | tojson }});
+const subjectData = Object.values({{ subject_counts | tojson }});
+const colors = [
+    'rgba(255, 99, 132, 0.8)',
+    'rgba(54, 162, 235, 0.8)',
+    'rgba(255, 205, 86, 0.8)',
+    'rgba(75, 192, 192, 0.8)',
+    'rgba(153, 102, 255, 0.8)',
+    'rgba(255, 159, 64, 0.8)',
+    'rgba(199, 199, 199, 0.8)',
+    'rgba(83, 102, 255, 0.8)'
+];
+new Chart(subjectCtx, {
+    type: 'polarArea',
+    data: {
+        labels: subjectLabels.length > 0 ? subjectLabels : ['No Content Yet'],
+        datasets: [{
+            data: subjectData.length > 0 ? subjectData : [1],
+            backgroundColor: colors.slice(0, Math.max(subjectLabels.length, 1))
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false
+    }
+});
+
+function setTimeRange(range) {
+    // Remove active class from all buttons
+    document.querySelectorAll('.btn-group .btn').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Add active class to clicked button
+    event.target.classList.add('active');
+    
+    // Update charts based on time range
+    console.log('Time range set to:', range);
+    // Implementation for updating chart data based on time range
+}
+</script>
+{% endblock %}

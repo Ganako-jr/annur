@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Login - E-Classroom Platform{% endblock %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-lg-5 col-md-7">
+            <div class="card shadow">
+                <div class="card-header text-center bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-sign-in-alt me-2"></i>Login to E-Classroom
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST" id="loginForm">
+                        <div class="mb-3">
+                            <label for="username" class="form-label">
+                                <i class="fas fa-user me-1"></i>Username
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username" required>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="password" class="form-label">
+                                <i class="fas fa-lock me-1"></i>Password
+                            </label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="password" name="password" required>
+                                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword()">
+                                    <i class="fas fa-eye" id="passwordToggle"></i>
+                                </button>
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-sign-in-alt me-2"></i>Login
+                            </button>
+                        </div>
+                    </form>
+                    
+                    <div class="text-center mt-4">
+                        <p class="text-muted">Don't have an account?</p>
+                        <a href="{{ url_for('register') }}" class="btn btn-outline-primary">
+                            <i class="fas fa-user-plus me-1"></i>Create Account
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Demo Info -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i>Access Information</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6 class="text-success">For Teachers:</h6>
+                            <p class="small text-muted">
+                                You need a valid Staff ID to register as a teacher. 
+                                Staff IDs are provided by the administration.
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6 class="text-info">For Students:</h6>
+                            <p class="small text-muted">
+                                Select your class during registration:
+                                SS1A, SS1B, SS2A, SS2B, SS3A, SS3B
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function togglePassword() {
+    const passwordInput = document.getElementById('password');
+    const passwordToggle = document.getElementById('passwordToggle');
+    
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        passwordToggle.className = 'fas fa-eye-slash';
+    } else {
+        passwordInput.type = 'password';
+        passwordToggle.className = 'fas fa-eye';
+    }
+}
+
+// Form validation
+document.getElementById('loginForm').addEventListener('submit', function(e) {
+    if (!validateForm('loginForm')) {
+        e.preventDefault();
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - E-Classroom Platform{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <!-- Welcome Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h2 class="mb-1">
+                                <i class="fas fa-wave-square me-2"></i>
+                                Welcome back, {{ current_user.username }}!
+                            </h2>
+                            <p class="mb-0 opacity-75">
+                                {% if current_user.role == 'teacher' %}
+                                    Manage your classes, assignments, and track student progress.
+                                {% else %}
+                                    Access your classes, assignments, and stay updated with notifications.
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <div class="fs-4">
+                                {% if current_user.role == 'teacher' %}
+                                    <i class="fas fa-chalkboard-teacher"></i>
+                                    <div class="small">Teacher</div>
+                                {% else %}
+                                    <i class="fas fa-user-graduate"></i>
+                                    <div class="small">{{ current_user.class_name }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Stats -->
+    <div class="row mb-4">
+        {% if current_user.role == 'teacher' %}
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="fs-1 text-success mb-2">
+                        <i class="fas fa-users"></i>
+                    </div>
+                    <h5>{{ active_sessions|length }}</h5>
+                    <small class="text-muted">Active Sessions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="fs-1 text-info mb-2">
+                        <i class="fas fa-clipboard-list"></i>
+                    </div>
+                    <h5>{{ assignments|length }}</h5>
+                    <small class="text-muted">Recent Assignments</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="fs-1 text-warning mb-2">
+                        <i class="fas fa-question-circle"></i>
+                    </div>
+                    <h5>{{ quizzes|length }}</h5>
+                    <small class="text-muted">Recent Quizzes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-3 col-md-6 mb-3">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="fs-1 text-primary mb-2">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h5>{{ notifications|length }}</h5>
+                    <small class="text-muted">New Notifications</small>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="fs-1 text-success mb-2">
+                        <i class="fas fa-play-circle"></i>
+                    </div>
+                    <h5>{{ active_sessions|length }}</h5>
+                    <small class="text-muted">Active Sessions</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="fs-1 text-info mb-2">
+                        <i class="fas fa-tasks"></i>
+                    </div>
+                    <h5>{{ assignments|length }}</h5>
+                    <small class="text-muted">Pending Assignments</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-4 col-md-6 mb-3">
+            <div class="card dashboard-card text-center">
+                <div class="card-body">
+                    <div class="fs-1 text-warning mb-2">
+                        <i class="fas fa-quiz"></i>
+                    </div>
+                    <h5>{{ quizzes|length }}</h5>
+                    <small class="text-muted">Available Quizzes</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="row">
+        <!-- Active Sessions -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-video me-2 text-success"></i>
+                        {% if current_user.role == 'teacher' %}Active Sessions{% else %}Join Sessions{% endif %}
+                    </h5>
+                    {% if current_user.role == 'teacher' %}
+                    <button class="btn btn-success btn-sm" data-bs-toggle="modal" data-bs-target="#startSessionModal">
+                        <i class="fas fa-plus me-1"></i>Start Session
+                    </button>
+                    {% endif %}
+                </div>
+                <div class="card-body">
+                    {% if active_sessions %}
+                        {% for session in active_sessions %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded session-card active">
+                            <div>
+                                <h6 class="mb-1">{{ session.subject }}</h6>
+                                <small class="text-muted">
+                                    {{ session.class_name }} • Started {{ session.started_at.strftime('%H:%M') }}
+                                    {% if current_user.role == 'teacher' %}
+                                        • by You
+                                    {% else %}
+                                        • by {{ session.teacher.username }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                {% if current_user.role == 'teacher' %}
+                                    <a href="{{ url_for('classroom', session_id=session.id) }}" class="btn btn-primary btn-sm">
+                                        <i class="fas fa-chalkboard me-1"></i>Manage
+                                    </a>
+                                {% else %}
+                                    <a href="{{ url_for('join_session', session_id=session.id) }}" class="btn btn-success btn-sm">
+                                        <i class="fas fa-sign-in-alt me-1"></i>Join
+                                    </a>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-video fs-1 mb-3 d-block"></i>
+                            {% if current_user.role == 'teacher' %}
+                                No active sessions. Start a new session to begin teaching.
+                            {% else %}
+                                No active sessions available for your class right now.
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clock me-2 text-info"></i>Recent Activity
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if notifications %}
+                        {% for notification in notifications %}
+                        <div class="d-flex align-items-start mb-3 p-2 border-start border-3 border-primary">
+                            <div class="flex-shrink-0 me-3">
+                                <i class="fas fa-bell text-primary"></i>
+                            </div>
+                            <div class="flex-grow-1">
+                                <h6 class="mb-1">{{ notification.title }}</h6>
+                                <p class="mb-1 small">{{ notification.message }}</p>
+                                <small class="text-muted">{{ notification.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        <div class="text-center">
+                            <a href="#" class="btn btn-outline-primary btn-sm">View All Notifications</a>
+                        </div>
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-bell fs-1 mb-3 d-block"></i>
+                            No new notifications
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Assignments -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-list me-2 text-info"></i>
+                        {% if current_user.role == 'teacher' %}Recent Assignments{% else %}Pending Assignments{% endif %}
+                    </h5>
+                    <a href="{{ url_for('assignments') }}" class="btn btn-outline-primary btn-sm">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if assignments %}
+                        {% for assignment in assignments %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded assignment-card">
+                            <div>
+                                <h6 class="mb-1">{{ assignment.title }}</h6>
+                                <small class="text-muted">
+                                    {{ assignment.subject }} • {{ assignment.class_name }}
+                                    {% if assignment.due_date %}
+                                        • Due: {{ assignment.due_date.strftime('%Y-%m-%d') }}
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                <a href="{{ url_for('assignments') }}" class="btn btn-outline-primary btn-sm">
+                                    {% if current_user.role == 'teacher' %}
+                                        <i class="fas fa-edit me-1"></i>Manage
+                                    {% else %}
+                                        <i class="fas fa-upload me-1"></i>Submit
+                                    {% endif %}
+                                </a>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-clipboard-list fs-1 mb-3 d-block"></i>
+                            {% if current_user.role == 'teacher' %}
+                                No assignments created yet.
+                            {% else %}
+                                No pending assignments.
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Quizzes -->
+        <div class="col-lg-6 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-question-circle me-2 text-warning"></i>
+                        {% if current_user.role == 'teacher' %}Recent Quizzes{% else %}Available Quizzes{% endif %}
+                    </h5>
+                    <a href="{{ url_for('quizzes') }}" class="btn btn-outline-primary btn-sm">
+                        View All
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if quizzes %}
+                        {% for quiz in quizzes %}
+                        <div class="d-flex justify-content-between align-items-center mb-3 p-3 border rounded">
+                            <div>
+                                <h6 class="mb-1">{{ quiz.title }}</h6>
+                                <small class="text-muted">
+                                    {{ quiz.subject }} • {{ quiz.class_name }}
+                                    {% if quiz.time_limit %}
+                                        • {{ quiz.time_limit }} minutes
+                                    {% endif %}
+                                </small>
+                            </div>
+                            <div>
+                                {% if current_user.role == 'teacher' %}
+                                    <span class="badge bg-{{ 'success' if quiz.is_active else 'secondary' }}">
+                                        {{ 'Active' if quiz.is_active else 'Inactive' }}
+                                    </span>
+                                {% else %}
+                                    {% if quiz.is_active %}
+                                        <a href="{{ url_for('take_quiz', quiz_id=quiz.id) }}" class="btn btn-warning btn-sm">
+                                            <i class="fas fa-play me-1"></i>Take Quiz
+                                        </a>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Not Available</span>
+                                    {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center py-4 text-muted">
+                            <i class="fas fa-question-circle fs-1 mb-3 d-block"></i>
+                            {% if current_user.role == 'teacher' %}
+                                No quizzes created yet.
+                            {% else %}
+                                No quizzes available.
+                            {% endif %}
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if current_user.role == 'teacher' %}
+<!-- Start Session Modal -->
+<div class="modal fade" id="startSessionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-play-circle me-2"></i>Start New Session
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('start_session') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="class_name" class="form-label">Class</label>
+                        <select class="form-select" id="class_name" name="class_name" required onchange="updateSubjects()">
+                            <option value="">Select Class</option>
+                            <option value="SS1A">SS1A</option>
+                            <option value="SS1B">SS1B</option>
+                            <option value="SS2A">SS2A</option>
+                            <option value="SS2B">SS2B</option>
+                            <option value="SS3A">SS3A</option>
+                            <option value="SS3B">SS3B</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="subject" class="form-label">Subject</label>
+                        <select class="form-select" id="subject" name="subject" required>
+                            <option value="">Select Subject</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-play me-1"></i>Start Session
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,419 @@
+{% extends "base.html" %}
+
+{% block title %}Video Call - {{ session.subject }} ({{ session.class_name }}){% endblock %}
+
+{% block extra_css %}
+<style>
+body {
+    background: #000;
+}
+.video-container {
+    position: relative;
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+    height: 70vh;
+}
+.local-video, .remote-video {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+.local-video-small {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    width: 200px;
+    height: 150px;
+    border: 2px solid #fff;
+    border-radius: 8px;
+    z-index: 10;
+}
+.video-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 15px;
+    z-index: 15;
+}
+.control-btn {
+    background: rgba(0, 0, 0, 0.7);
+    border: none;
+    color: white;
+    padding: 15px;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.3s;
+    width: 60px;
+    height: 60px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.control-btn:hover {
+    background: rgba(0, 0, 0, 0.9);
+    transform: scale(1.1);
+}
+.control-btn.active {
+    background: var(--bs-primary);
+}
+.control-btn.danger {
+    background: var(--bs-danger);
+}
+.participants-panel {
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 8px;
+    color: white;
+}
+.chat-overlay {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    width: 300px;
+    max-height: 400px;
+    background: rgba(0, 0, 0, 0.8);
+    border-radius: 8px;
+    color: white;
+    z-index: 10;
+    transition: opacity 0.3s;
+}
+.chat-overlay.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+.connection-status {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 20;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-0 vh-100">
+    <!-- Connection Status -->
+    <div class="connection-status">
+        <div id="connectionStatus" class="alert alert-info" style="display: none;">
+            <i class="fas fa-spinner fa-spin me-2"></i>Connecting...
+        </div>
+    </div>
+
+    <!-- Session Info Bar -->
+    <div class="position-fixed top-0 start-0 end-0 bg-dark text-white p-2 d-flex justify-content-between align-items-center" style="z-index: 30;">
+        <div>
+            <strong>{{ session.subject }}</strong> - {{ session.class_name }} 
+            <span class="badge bg-success ms-2">LIVE</span>
+        </div>
+        <div class="d-flex align-items-center gap-3">
+            <span id="callDuration">00:00:00</span>
+            <button class="btn btn-outline-light btn-sm" onclick="toggleChat()">
+                <i class="fas fa-comments me-1"></i>Chat
+            </button>
+            <button class="btn btn-outline-light btn-sm" onclick="toggleParticipants()">
+                <i class="fas fa-users me-1"></i>Participants
+            </button>
+            <a href="{{ url_for('classroom', session_id=session.id) }}" class="btn btn-outline-light btn-sm">
+                <i class="fas fa-times me-1"></i>Exit
+            </a>
+        </div>
+    </div>
+
+    <!-- Main Video Area -->
+    <div class="row g-0 mt-5 pt-2">
+        <div class="col-lg-9">
+            <div class="video-container m-3">
+                <!-- Remote Video (Main) -->
+                <video id="remoteVideo" class="remote-video" autoplay playsinline muted>
+                    <source src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                
+                <!-- Local Video (Picture-in-Picture) -->
+                <video id="localVideo" class="local-video-small" autoplay playsinline muted>
+                    <source src="" type="video/mp4">
+                    Your browser does not support the video tag.
+                </video>
+                
+                <!-- Video Controls -->
+                <div class="video-controls">
+                    {% if current_user.role == 'teacher' %}
+                    <button class="control-btn" id="startCallBtn" onclick="startCall()" title="Start Call">
+                        <i class="fas fa-phone"></i>
+                    </button>
+                    {% endif %}
+                    <button class="control-btn active" id="toggleVideoBtn" onclick="toggleVideo()" title="Toggle Video">
+                        <i class="fas fa-video"></i>
+                    </button>
+                    <button class="control-btn active" id="toggleAudioBtn" onclick="toggleAudio()" title="Toggle Audio">
+                        <i class="fas fa-microphone"></i>
+                    </button>
+                    {% if current_user.role == 'teacher' %}
+                    <button class="control-btn" id="shareScreenBtn" onclick="shareScreen()" title="Share Screen">
+                        <i class="fas fa-desktop"></i>
+                    </button>
+                    {% endif %}
+                    <button class="control-btn danger" id="endCallBtn" onclick="endCall()" title="End Call">
+                        <i class="fas fa-phone-slash"></i>
+                    </button>
+                </div>
+
+                <!-- Chat Overlay -->
+                <div class="chat-overlay hidden" id="chatOverlay">
+                    <div class="p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h6 class="mb-0">Class Chat</h6>
+                            <button class="btn btn-sm btn-outline-light" onclick="toggleChat()">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                        <div class="chat-messages" id="overlayMessages" style="height: 200px; overflow-y: auto; font-size: 0.9rem;">
+                            <!-- Messages will be populated here -->
+                        </div>
+                        <div class="mt-2">
+                            <div class="input-group input-group-sm">
+                                <input type="text" class="form-control" id="overlayMessageInput" placeholder="Type message...">
+                                <button class="btn btn-primary" onclick="sendOverlayMessage()">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-3">
+            <div class="h-100 d-flex flex-column">
+                <!-- Participants Panel -->
+                <div class="participants-panel m-3 p-3 flex-grow-1">
+                    <h6 class="mb-3">
+                        <i class="fas fa-users me-2"></i>Participants
+                        <span class="badge bg-primary ms-2" id="participantCount">1</span>
+                    </h6>
+                    
+                    <!-- Teacher -->
+                    <div class="d-flex align-items-center mb-3 p-2 rounded" style="background: rgba(255, 255, 255, 0.1);">
+                        <div class="flex-shrink-0 me-3">
+                            <div class="bg-warning text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                <i class="fas fa-chalkboard-teacher"></i>
+                            </div>
+                        </div>
+                        <div class="flex-grow-1">
+                            <div class="fw-bold">{{ session.teacher.username }}</div>
+                            <small class="text-light">Teacher</small>
+                        </div>
+                        <div class="text-end">
+                            <i class="fas fa-microphone text-success"></i>
+                            <i class="fas fa-video text-success ms-1"></i>
+                        </div>
+                    </div>
+
+                    <!-- Students -->
+                    <div id="studentParticipants">
+                        {% if current_user.role == 'student' %}
+                        <div class="d-flex align-items-center mb-2 p-2 rounded" style="background: rgba(255, 255, 255, 0.1);">
+                            <div class="flex-shrink-0 me-3">
+                                <div class="bg-info text-white rounded-circle d-flex align-items-center justify-content-center" style="width: 35px; height: 35px;">
+                                    <i class="fas fa-user"></i>
+                                </div>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="small fw-bold">{{ current_user.username }}</div>
+                                <small class="text-light">You</small>
+                            </div>
+                            <div class="text-end">
+                                <i class="fas fa-microphone text-success"></i>
+                                <i class="fas fa-video text-success ms-1"></i>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Quick Actions -->
+                <div class="participants-panel m-3 p-3">
+                    <h6 class="mb-3">
+                        <i class="fas fa-tools me-2"></i>Quick Actions
+                    </h6>
+                    <div class="d-grid gap-2">
+                        <button class="btn btn-outline-light btn-sm" onclick="toggleFullscreen()">
+                            <i class="fas fa-expand me-1"></i>Fullscreen
+                        </button>
+                        {% if current_user.role == 'teacher' %}
+                        <button class="btn btn-outline-warning btn-sm" onclick="recordSession()">
+                            <i class="fas fa-record-vinyl me-1"></i>Record
+                        </button>
+                        <button class="btn btn-outline-info btn-sm" onclick="takeScreenshot()">
+                            <i class="fas fa-camera me-1"></i>Screenshot
+                        </button>
+                        {% endif %}
+                        <button class="btn btn-outline-secondary btn-sm" onclick="toggleSettings()">
+                            <i class="fas fa-cog me-1"></i>Settings
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Settings Modal -->
+<div class="modal fade" id="settingsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-cog me-2"></i>Video Call Settings
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label class="form-label">Camera</label>
+                    <select class="form-select" id="cameraSelect">
+                        <option>Default Camera</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Microphone</label>
+                    <select class="form-select" id="microphoneSelect">
+                        <option>Default Microphone</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Speaker</label>
+                    <select class="form-select" id="speakerSelect">
+                        <option>Default Speaker</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Video Quality</label>
+                    <select class="form-select" id="qualitySelect">
+                        <option value="720p">HD (720p)</option>
+                        <option value="480p">SD (480p)</option>
+                        <option value="360p">Low (360p)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn btn-primary" onclick="applySettings()">Apply Settings</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Set session data for JavaScript
+window.sessionId = {{ session.id }};
+
+// Call duration timer
+let callStartTime = Date.now();
+setInterval(() => {
+    const duration = Date.now() - callStartTime;
+    const hours = Math.floor(duration / 3600000);
+    const minutes = Math.floor((duration % 3600000) / 60000);
+    const seconds = Math.floor((duration % 60000) / 1000);
+    
+    document.getElementById('callDuration').textContent = 
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+}, 1000);
+
+function toggleChat() {
+    const chatOverlay = document.getElementById('chatOverlay');
+    chatOverlay.classList.toggle('hidden');
+}
+
+function toggleParticipants() {
+    // Toggle participants panel visibility
+    console.log('Toggle participants panel');
+}
+
+function sendOverlayMessage() {
+    const input = document.getElementById('overlayMessageInput');
+    const message = input.value.trim();
+    
+    if (message && window.messaging) {
+        window.messaging.socket.emit('send_message', {
+            session_id: window.sessionId,
+            message: message
+        });
+        input.value = '';
+    }
+}
+
+function toggleFullscreen() {
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        document.exitFullscreen();
+    }
+}
+
+function recordSession() {
+    if (confirm('Start recording this session?')) {
+        showNotification('Recording started', 'success');
+        // Implementation for session recording
+    }
+}
+
+function takeScreenshot() {
+    showNotification('Screenshot captured', 'success');
+    // Implementation for taking screenshot
+}
+
+function toggleSettings() {
+    const modal = new bootstrap.Modal(document.getElementById('settingsModal'));
+    modal.show();
+}
+
+function applySettings() {
+    const quality = document.getElementById('qualitySelect').value;
+    showNotification(`Settings applied. Video quality: ${quality}`, 'success');
+    
+    const modal = bootstrap.Modal.getInstance(document.getElementById('settingsModal'));
+    modal.hide();
+}
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        switch(e.key) {
+            case 'm':
+                e.preventDefault();
+                toggleAudio();
+                break;
+            case 'e':
+                e.preventDefault();
+                toggleVideo();
+                break;
+            case 'f':
+                e.preventDefault();
+                toggleFullscreen();
+                break;
+        }
+    }
+});
+
+// Initialize video call when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    // Show connection status
+    document.getElementById('connectionStatus').style.display = 'block';
+    
+    setTimeout(() => {
+        document.getElementById('connectionStatus').style.display = 'none';
+    }, 2000);
+});
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/video.js') }}"></script>
+<script src="{{ url_for('static', filename='js/messaging.js') }}"></script>
+{% endblock %}

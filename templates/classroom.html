@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Classroom - {{ session.subject }} ({{ session.class_name }}){% endblock %}
+
+{% block extra_css %}
+<style>
+.chat-messages {
+    max-height: 400px;
+    overflow-y: auto;
+}
+.video-section {
+    background: #000;
+    border-radius: 8px;
+    min-height: 300px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Session Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <div class="row align-items-center">
+                        <div class="col-md-8">
+                            <h3 class="mb-1">
+                                <i class="fas fa-chalkboard me-2"></i>
+                                {{ session.subject }} Class
+                            </h3>
+                            <p class="mb-0 opacity-75">
+                                {{ session.class_name }} • Started at {{ session.started_at.strftime('%H:%M on %B %d, %Y') }}
+                                • Teacher: {{ session.teacher.username }}
+                            </p>
+                        </div>
+                        <div class="col-md-4 text-md-end">
+                            <span class="badge bg-light text-success fs-6 me-2">
+                                <i class="fas fa-circle me-1"></i>LIVE
+                            </span>
+                            <div id="session-timer" class="small mt-1">00:00:00</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Video Call Section -->
+        <div class="col-lg-8 mb-4">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-video me-2"></i>Video Conference
+                    </h5>
+                    <div class="btn-group">
+                        {% if current_user.role == 'teacher' %}
+                        <button type="button" class="btn btn-primary btn-sm" onclick="startCall()">
+                            <i class="fas fa-play me-1"></i>Start Call
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('video_call', session_id=session.id) }}" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-expand me-1"></i>Fullscreen
+                        </a>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="video-section d-flex align-items-center justify-content-center text-white">
+                        <div class="text-center">
+                            <i class="fas fa-video fs-1 mb-3"></i>
+                            <h5>Video Conference</h5>
+                            <p class="mb-0">
+                                {% if current_user.role == 'teacher' %}
+                                    Click "Start Call" to begin the video session
+                                {% else %}
+                                    Waiting for teacher to start the video session
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-tools me-2"></i>Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        {% if current_user.role == 'teacher' %}
+                        <div class="col-md-3 mb-3">
+                            <button class="btn btn-outline-primary w-100" data-bs-toggle="modal" data-bs-target="#createAssignmentModal">
+                                <i class="fas fa-plus me-1"></i><br>
+                                <small>Add Assignment</small>
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <button class="btn btn-outline-warning w-100" data-bs-toggle="modal" data-bs-target="#createQuizModal">
+                                <i class="fas fa-question me-1"></i><br>
+                                <small>Create Quiz</small>
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <a href="{{ url_for('analytics') }}" class="btn btn-outline-info w-100">
+                                <i class="fas fa-chart-bar me-1"></i><br>
+                                <small>View Analytics</small>
+                            </a>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <button class="btn btn-outline-danger w-100" onclick="endSession()">
+                                <i class="fas fa-stop me-1"></i><br>
+                                <small>End Session</small>
+                            </button>
+                        </div>
+                        {% else %}
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('assignments') }}" class="btn btn-outline-primary w-100">
+                                <i class="fas fa-clipboard-list me-1"></i><br>
+                                <small>View Assignments</small>
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <a href="{{ url_for('quizzes') }}" class="btn btn-outline-warning w-100">
+                                <i class="fas fa-question-circle me-1"></i><br>
+                                <small>Take Quizzes</small>
+                            </a>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <button class="btn btn-outline-danger w-100" onclick="leaveSession()">
+                                <i class="fas fa-sign-out-alt me-1"></i><br>
+                                <small>Leave Session</small>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Section -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comments me-2"></i>Class Chat
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="chat-container">
+                        <div class="chat-messages" id="messages">
+                            {% for message in messages %}
+                            <div class="message {{ message.sender.role }} {{ 'own' if message.sender_id == current_user.id else 'other' }}">
+                                <div class="message-header">
+                                    {{ message.sender.username }} • {{ message.timestamp.strftime('%H:%M') }}
+                                </div>
+                                <div class="message-content">{{ message.content }}</div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                        <div class="chat-input">
+                            <div class="input-group">
+                                <textarea class="form-control" id="messageInput" placeholder="Type your message..." rows="2"></textarea>
+                                <button class="btn btn-primary" type="button" id="sendMessage">
+                                    <i class="fas fa-paper-plane"></i>
+                                </button>
+                            </div>
+                            <div class="mt-2">
+                                <button class="btn btn-outline-secondary btn-sm" id="fileButton">
+                                    <i class="fas fa-paperclip me-1"></i>Attach File
+                                </button>
+                                <input type="file" id="fileInput" style="display: none;">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Participants -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-users me-2"></i>Participants
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-2">
+                        <i class="fas fa-chalkboard-teacher text-warning me-2"></i>
+                        <span>{{ session.teacher.username }}</span>
+                        <span class="badge bg-warning ms-auto">Teacher</span>
+                    </div>
+                    <!-- Students will be added dynamically via JavaScript -->
+                    <div id="studentList">
+                        {% if current_user.role == 'student' and current_user.class_name == session.class_name %}
+                        <div class="d-flex align-items-center mb-2">
+                            <i class="fas fa-user-graduate text-info me-2"></i>
+                            <span>{{ current_user.username }}</span>
+                            <span class="badge bg-info ms-auto">You</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create Assignment Modal -->
+{% if current_user.role == 'teacher' %}
+<div class="modal fade" id="createAssignmentModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-plus me-2"></i>Create Assignment
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('create_assignment') }}">
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="assignmentTitle" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="assignmentTitle" name="title" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="assignmentDueDate" class="form-label">Due Date</label>
+                            <input type="datetime-local" class="form-control" id="assignmentDueDate" name="due_date" required>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="assignmentSubject" class="form-label">Subject</label>
+                            <input type="text" class="form-control" id="assignmentSubject" name="subject" value="{{ session.subject }}" readonly>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="assignmentClass" class="form-label">Class</label>
+                            <input type="text" class="form-control" id="assignmentClass" name="class_name" value="{{ session.class_name }}" readonly>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="assignmentDescription" class="form-label">Description</label>
+                        <textarea class="form-control" id="assignmentDescription" name="description" rows="4"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Assignment</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<script>
+// Set session data for JavaScript
+window.sessionId = {{ session.id }};
+
+// Start session timer
+document.addEventListener('DOMContentLoaded', function() {
+    startSessionTimer();
+    
+    // Initialize messaging
+    if (typeof Messaging !== 'undefined') {
+        window.messaging = new Messaging({{ session.id }});
+    }
+});
+
+function startCall() {
+    window.location.href = '{{ url_for("video_call", session_id=session.id) }}';
+}
+
+function endSession() {
+    if (confirm('Are you sure you want to end this session? All participants will be disconnected.')) {
+        // Implementation for ending session
+        fetch('/end_session/{{ session.id }}', {
+            method: 'POST'
+        }).then(() => {
+            window.location.href = '{{ url_for("dashboard") }}';
+        });
+    }
+}
+
+function leaveSession() {
+    if (confirm('Are you sure you want to leave this session?')) {
+        window.location.href = '{{ url_for("dashboard") }}';
+    }
+}
+</script>
+
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/messaging.js') }}"></script>
+{% endblock %}
